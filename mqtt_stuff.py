@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Copyright Lizzy Trickster (Lizzy Green)
 import os.path
+import time
+from datetime import datetime as dt
 
 import paho.mqtt.client as mqtt
 from asyncio_paho.client import AsyncioPahoClient
@@ -16,9 +18,6 @@ try:
     if os.path.exists("nodedb.yaml"):
         with open("nodedb.yaml", "r") as f:
             NODES = Box.from_yaml(f.read(), default_box=True)
-    elif os.path.exists("nodedb.json"):
-        with open("nodedb.json", "r") as f:
-            NODES = Box.from_json(f.read())
 except FileNotFoundError:
     pass
 
@@ -27,36 +26,50 @@ async def on_connect(client: AsyncioPahoClient, userdata: Any, flags: dict[str, 
 
 
 async def on_message(client, userdata, msg):
-    data = json.loads(msg.payload)
-    # data = Box.from_json(msg.payload, frozen_box=True)
-    if data['type'] == "sendtext":
+    # data = json.loads(msg.payload)
+    # print(msg.payload)
+    data = Box.from_json(msg.payload.decode("utf-8"), frozen_box=True)
+    if data.type == "sendtext":
         return
 
+    sender = data['from']
     print(data)
-    print(data['type'], hex(data.get('to', 0)), hex(data['from']))
-    if data['from'] not in NODES:
-        NODES[data['from']] = dict(as_hex=hex(data['from']))
-    if data['type'] == "nodeinfo":
-        NODES[data['from']]["hardware"] = data['payload']['hardware']
-        NODES[data['from']]['shortname'] = data['payload']['shortname']
-        NODES[data['from']]['longname'] = data['payload']['longname']
-    elif data['type'] == "position":
-        NODES[data['from']]['position'] = dict(
-            lat=data['payload']['latitude_i'],
-            lon=data['payload']['longitude_i'],
-            alt=data['payload']['altitude'],
-            tim=data['payload']['time'] )
+    print(data.type, hex(data.get('to', 0)), hex(sender))
+    if sender not in NODES:
+        NODES[sender] = dict(as_hex=hex(sender))
+
+    NODES[sender]._last_heard = dict(ts=dt.now(), type=data.type)
+    NODES[sender]._stats[data.type or "_"].latest = dt.now()
+    NODES[sender]._stats[data.type or "_"].count = NODES[sender]._stats[data.type].get("count", 0) + 1
+
+    match data.type:
+        case "nodeinfo":
+            NODES[sender].hardware = data.payload.hardware
+            NODES[sender].shortname = data.payload.shortname
+            NODES[sender].longname = data.payload.longname
+        case "position":
+            NODES[sender].position = dict(
+                lat=(data.payload.latitude_i * 1e7) / 100000000000000,
+                lon=(data.payload.longitude_i * 1e7) / 100000000000000,
+                alt=data.payload.altitude,
+                tim=data.payload.time)
+        case "telemetry":
+            NODES[sender].telemetry = dict(
+                tx_util=data.payload.air_util_tx,
+                batt=data.payload.battery_level,
+                chan_util=data.payload.channel_utilization,
+                voltage=data.payload.voltage)
 
     print(data.get("sender", "Who knows?"), hex(data.get("from")))
 
 
 
     # Update latest entries
-    NODES[data['from']]['latest_rssi'] = data.get("rssi", 0)
-    NODES[data['from']]['lates_snr'] = data.get("snr", 0)
+    NODES[sender].latest_rssi = data.get("rssi", 0)
+    NODES[sender].latest_snr = data.get("snr", 0)
 
-    if data['type'] == 'text' and data['payload']['text'] == 'can you hear me LiZB?':
-        await send_message(client, f"Hello {hex(data['from'])}!")
+    if data.type == 'text' and data.payload.text == 'can you hear me LiZB?':
+        await send_message(client, f"Hello {hex(sender)}!")
 
 
 async def send_message(c:AsyncioPahoClient, message:str):
@@ -85,6 +98,7 @@ async def on_unsubscribe(client, userdata, mid, reason_code_list, properties):
 
 async def save_node_db():
     while True:
+        NODES._last_write = time.time()
         async with aiofiles.open("nodedb.yaml", "w") as f:
             await f.write(NODES.to_yaml())
             # await f.write(json.dumps(NODES, indent=True))

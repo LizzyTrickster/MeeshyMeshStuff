@@ -1,0 +1,6 @@
+python-box
+meshtastic
+paho-mqtt
+asyncio-paho
+pyserial
+aiofiles
