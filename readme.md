@@ -30,7 +30,7 @@ Some app to note down nodes and track stats like battery, airtime, etc.
 This will be displayed either in a dedicated GUI or a web interface (whichever I find easier to code when I get to it).
 
 
-## Why are you using AsyncIO? Why not <other thing>?
+## Why are you using AsyncIO? Why not [other thing]?
 I'm used to using AsyncIO-based stuff in some of my other projects (namely a discord bot).
 Other libraries may be faster, but I don't have the motivation to learn something new. 
 Also this is my personal project, [but don't worry, I have a permit](https://www.youtube.com/watch?v=uq6nBigMnlg)
