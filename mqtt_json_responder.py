@@ -15,10 +15,10 @@ import paho.mqtt.client as mqtt
 from asyncio_paho.client import AsyncioPahoClient
 from box import Box
 
-MQTT_ROOT: str = os.environ.get("MQTT_ROOT", "MESHY")
-MQTT_HOST: str = os.environ.get("MQTT_HOST", "192.168.0.17")
-MQTT_USER: str = os.environ.get("MQTT_USER", "mqtt")
-MQTT_PASS: str = os.environ.get("MQTT_PASS", "mqtt")
+MQTT_ROOT: str = os.environ.get("MQTT_ROOT", "msh")
+MQTT_HOST: str = os.environ.get("MQTT_HOST", "127.0.0.1")
+MQTT_USER: str = os.environ.get("MQTT_USER")
+MQTT_PASS: str = os.environ.get("MQTT_PASS")
 RESPONSES_TO_LISTEN_FOR = [
     # Add your own ones in here, please don't steal my nodename :)
     "lizb signal check",
